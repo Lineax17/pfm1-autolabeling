@@ -4,7 +4,7 @@ import json
 from ultralytics import YOLO
 
 
-class Labeler:
+class CVATLabeler:
     def label_videos(
         self,
         video_folder,
