@@ -1,5 +1,5 @@
 from pathlib import Path
-from helper.labeler import Labeler
+from helper.cvat_labeler import CVATLabeler
 
 # Configuration
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -9,6 +9,6 @@ TARGET_FOLDER = REPO_ROOT / "data" / "output"
 
 
 if __name__ == "__main__":
-    labeler = Labeler()
+    labeler = CVATLabeler()
     labeler.label_videos(VIDEO_FOLDER, TARGET_FOLDER, MODEL)
 
