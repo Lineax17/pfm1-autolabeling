@@ -4,8 +4,15 @@ import json
 from ultralytics import YOLO
 
 
-class CVATLabeler:
-    def label_videos(self, video_folder, target_folder, model_path, frame_stride=10):
+class Labeler:
+    def label_videos(
+        self,
+        video_folder,
+        target_folder,
+        model_path,
+        frame_stride=10,
+        only_labeled_frames=False
+    ):
         model = YOLO(str(model_path))
 
         video_folder = Path(video_folder)
@@ -15,9 +22,6 @@ class CVATLabeler:
 
             video_name = video.stem
 
-            # ----------------------------
-            # CVAT structure
-            # ----------------------------
             dataset_dir = target_folder / video_name
             images_dir = dataset_dir / "images" / "default"
             annotations_dir = dataset_dir / "annotations"
@@ -34,18 +38,12 @@ class CVATLabeler:
             annotation_id = 0
             image_id = 0
 
-            # ----------------------------
-            # categories from model
-            # ----------------------------
             for cls_id, name in model.names.items():
                 categories.append({
                     "id": cls_id,
                     "name": name
                 })
 
-            # ----------------------------
-            # video capture
-            # ----------------------------
             cap = cv2.VideoCapture(str(video))
             frame_idx = 0
 
@@ -54,12 +52,22 @@ class CVATLabeler:
                 if not ret:
                     break
 
-                # stride skipping
                 if frame_idx % frame_stride != 0:
                     frame_idx += 1
                     continue
 
-                # CVAT-style filename
+                results = model(frame, verbose=False)[0]
+
+                boxes = results.boxes if results.boxes is not None else []
+                has_labels = len(boxes) > 0
+
+                # ---------------------------------
+                # NEW: skip unlabeled frames if flag
+                # ---------------------------------
+                if only_labeled_frames and not has_labels:
+                    frame_idx += 1
+                    continue
+
                 frame_name = f"frame_{frame_idx:06d}.png"
                 frame_path = images_dir / frame_name
 
@@ -69,35 +77,32 @@ class CVATLabeler:
 
                 images.append({
                     "id": image_id,
-                    "file_name": f"images/default/{frame_name}",
+                    "file_name": f"{frame_name}",
                     "width": w,
                     "height": h
                 })
 
-                # inference
-                results = model(frame, verbose=False)[0]
+                # annotations only if boxes exist
+                for box in boxes:
+                    x1, y1, x2, y2 = box.xyxy[0].tolist()
+                    cls = int(box.cls[0])
 
-                if results.boxes is not None:
-                    for box in results.boxes:
-                        x1, y1, x2, y2 = box.xyxy[0].tolist()
-                        cls = int(box.cls[0])
+                    bw = x2 - x1
+                    bh = y2 - y1
 
-                        bw = x2 - x1
-                        bh = y2 - y1
+                    annotations.append({
+                        "id": annotation_id,
+                        "image_id": image_id,
+                        "category_id": cls,
+                        "bbox": [x1, y1, bw, bh],
+                        "area": bw * bh,
+                        "iscrowd": 0
+                    })
 
-                        annotations.append({
-                            "id": annotation_id,
-                            "image_id": image_id,
-                            "category_id": cls,
-                            "bbox": [x1, y1, bw, bh],
-                            "area": bw * bh,
-                            "iscrowd": 0
-                        })
-
-                        annotation_id += 1
+                    annotation_id += 1
 
                 image_id += 1
-                frame_idx += frame_stride
+                frame_idx += 1
 
             cap.release()
 
@@ -110,5 +115,5 @@ class CVATLabeler:
             with open(coco_path, "w") as f:
                 json.dump(coco, f, indent=2)
 
-            print(f"✔ CVAT dataset ready: {video_name}")
+            print(f"✔ Done: {video_name}")
             print(f"   → {dataset_dir}")
