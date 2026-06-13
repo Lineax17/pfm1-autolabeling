@@ -5,20 +5,23 @@ from ultralytics import YOLO
 
 
 class Labeler:
-    def label_videos(self, video_folder, target_folder, model_path, frame_stride=1):
+    def label_videos(
+        self,
+        video_folder,
+        target_folder,
+        model_path,
+        frame_stride=10,
+        only_labeled_frames=False
+    ):
         model = YOLO(str(model_path))
 
         video_folder = Path(video_folder)
         target_folder = Path(target_folder)
 
-        # ----------------------------
-        # process each video
-        # ----------------------------
         for video in video_folder.glob("*.mp4"):
 
             video_name = video.stem
 
-            # per-video dataset folder
             dataset_dir = target_folder / video_name
             images_dir = dataset_dir / "images"
             images_dir.mkdir(parents=True, exist_ok=True)
@@ -32,18 +35,12 @@ class Labeler:
             annotation_id = 0
             image_id = 0
 
-            # ----------------------------
-            # categories from model
-            # ----------------------------
             for cls_id, name in model.names.items():
                 categories.append({
                     "id": cls_id,
                     "name": name
                 })
 
-            # ----------------------------
-            # read video
-            # ----------------------------
             cap = cv2.VideoCapture(str(video))
             frame_idx = 0
 
@@ -52,8 +49,22 @@ class Labeler:
                 if not ret:
                     break
 
-                # frame skipping
                 if frame_idx % frame_stride != 0:
+                    frame_idx += 1
+                    continue
+
+                # ----------------------------
+                # inference FIRST (needed for filtering)
+                # ----------------------------
+                results = model(frame, verbose=False)[0]
+                boxes = results.boxes if results.boxes is not None else []
+
+                has_labels = len(boxes) > 0
+
+                # ----------------------------
+                # NEW FILTER LOGIC
+                # ----------------------------
+                if only_labeled_frames and not has_labels:
                     frame_idx += 1
                     continue
 
@@ -64,7 +75,6 @@ class Labeler:
 
                 h, w = frame.shape[:2]
 
-                # COCO image entry
                 images.append({
                     "id": image_id,
                     "file_name": frame_name,
@@ -72,35 +82,29 @@ class Labeler:
                     "height": h
                 })
 
-                # inference
-                results = model(frame, verbose=False)[0]
+                for box in boxes:
+                    x1, y1, x2, y2 = box.xyxy[0].tolist()
+                    cls = int(box.cls[0])
 
-                if results.boxes is not None:
-                    for box in results.boxes:
-                        x1, y1, x2, y2 = box.xyxy[0].tolist()
-                        cls = int(box.cls[0])
+                    bw = x2 - x1
+                    bh = y2 - y1
 
-                        bw = x2 - x1
-                        bh = y2 - y1
+                    annotations.append({
+                        "id": annotation_id,
+                        "image_id": image_id,
+                        "category_id": cls,
+                        "bbox": [x1, y1, bw, bh],
+                        "area": bw * bh,
+                        "iscrowd": 0
+                    })
 
-                        annotations.append({
-                            "id": annotation_id,
-                            "image_id": image_id,
-                            "category_id": cls,
-                            "bbox": [x1, y1, bw, bh],
-                            "area": bw * bh,
-                            "iscrowd": 0
-                        })
-                        annotation_id += 1
+                    annotation_id += 1
 
                 image_id += 1
                 frame_idx += 1
 
             cap.release()
 
-            # ----------------------------
-            # write COCO JSON
-            # ----------------------------
             coco = {
                 "images": images,
                 "annotations": annotations,
