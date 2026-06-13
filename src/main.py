@@ -1,5 +1,4 @@
 from pathlib import Path
-
 from helper.labeler import Labeler
 
 # Configuration
@@ -12,3 +11,4 @@ TARGET_FOLDER = REPO_ROOT / "data" / "output"
 if __name__ == "__main__":
     labeler = Labeler()
     labeler.label_videos(VIDEO_FOLDER, TARGET_FOLDER, MODEL)
+
