@@ -4,7 +4,7 @@ from ultralytics import YOLO
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODEL = REPO_ROOT / "model" / "pfm1-yolo11s-v1.pt"
-VIDEO_FOLDER = REPO_ROOT / "videos"
+VIDEO_FOLDER = REPO_ROOT / "data" / "videos"
 TARGET_FOLDER = REPO_ROOT / "data" / "yolo"
 
 model = YOLO(str(MODEL))
