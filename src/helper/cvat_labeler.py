@@ -35,12 +35,13 @@ class CVATLabeler:
             annotations = []
             categories = []
 
-            annotation_id = 0
+            annotation_id = 1
             image_id = 0
 
+            # COCO categories start at 1
             for cls_id, name in model.names.items():
                 categories.append({
-                    "id": cls_id,
+                    "id": cls_id + 1,
                     "name": name
                 })
 
@@ -61,9 +62,6 @@ class CVATLabeler:
                 boxes = results.boxes if results.boxes is not None else []
                 has_labels = len(boxes) > 0
 
-                # ---------------------------------
-                # NEW: skip unlabeled frames if flag
-                # ---------------------------------
                 if only_labeled_frames and not has_labels:
                     frame_idx += 1
                     continue
@@ -77,15 +75,16 @@ class CVATLabeler:
 
                 images.append({
                     "id": image_id,
-                    "file_name": f"{frame_name}",
+                    "file_name": frame_name,
                     "width": w,
                     "height": h
                 })
 
-                # annotations only if boxes exist
                 for box in boxes:
                     x1, y1, x2, y2 = box.xyxy[0].tolist()
-                    cls = int(box.cls[0])
+
+                    # YOLO class IDs are 0-based → shift to 1-based
+                    cls = int(box.cls[0]) + 1
 
                     bw = x2 - x1
                     bh = y2 - y1
@@ -107,6 +106,8 @@ class CVATLabeler:
             cap.release()
 
             coco = {
+                "info": {},
+                "licenses": [],
                 "images": images,
                 "annotations": annotations,
                 "categories": categories
@@ -117,3 +118,5 @@ class CVATLabeler:
 
             print(f"✔ Done: {video_name}")
             print(f"   → {dataset_dir}")
+            print(f"   → Images: {len(images)}")
+            print(f"   → Annotations: {len(annotations)}")
