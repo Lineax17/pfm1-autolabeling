@@ -21,6 +21,19 @@ This tool can autolabel footage containing a PFM1 replica.
    ```
 5. The autolabeled footage will be saved in the data/output directory.
 
+## Testing
+
+To test your labeled footage, you can use the provided test script:
+
+- In the configuration section adjust the video name (without the .mp4).
+- Run the test script:
+
+   ```bash
+   python src/test/test_show_bbox.py
+   ```
+  
+If you should use the COCOLabeler instead of the default you have to adjust the paths.
+
 ## Details
 
 The Project contains two different ways to label data:
