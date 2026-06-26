@@ -4,7 +4,7 @@ from helper.video_annotator import VideoAnnotator
 
 # Configuration
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MODEL = REPO_ROOT / "model" / "pfm1-yolo11s-v1.pt"
+MODEL = REPO_ROOT / "model" / "pfm1-yolo11s-v2.pt"
 VIDEO_FOLDER = REPO_ROOT / "data" / "videos"
 TARGET_FOLDER = REPO_ROOT / "data" / "output"
 
